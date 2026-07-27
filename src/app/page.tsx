@@ -1,65 +1,90 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+import { HeroSearch } from '@/components/home/search-bar';
+import { TrendingStocks } from '@/components/home/trending-stocks';
+import { MarketOverview } from '@/components/home/market-overview';
+import { RecentDiscussions } from '@/components/home/recent-discussions';
+import { TopTraders } from '@/components/home/top-traders';
+import { CreatePostDialog } from '@/components/posts/create-post-dialog';
+import { Button } from '@/components/ui/button';
+import { Plus, Sparkles, TrendingUp, MessageSquare, Brain } from 'lucide-react';
+
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="space-y-6 animate-in">
+      {/* Hero Section */}
+      <div className="flex flex-col items-center text-center py-8 sm:py-12 space-y-4">
+        <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-4 py-1.5 text-xs font-medium text-indigo-400 mb-2">
+          <Sparkles className="h-3.5 w-3.5" />
+          AI-Powered Trading Community
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+        <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white tracking-tight max-w-3xl text-balance">
+          Where traders discover ideas,
+          <br />
+          <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">
+            discuss stocks, and win together
+          </span>
+        </h1>
+        <p className="text-sm sm:text-base text-white/50 max-w-xl">
+          Open any ticker. Understand everything happening in under 30 seconds.
+          AI-powered summaries, real-time community discussions, and market insights.
+        </p>
+        <div className="flex items-center gap-3 pt-2">
+          <CreatePostDialog>
+            <Button size="lg" className="gap-2">
+              <Plus className="h-5 w-5" />
+              Start Discussion
+            </Button>
+          </CreatePostDialog>
+          <Button variant="outline" size="lg" className="gap-2" asChild>
+            <a href="#trending">
+              <TrendingUp className="h-5 w-5" />
+              Explore
+            </a>
+          </Button>
         </div>
-      </main>
+      </div>
+
+      {/* Search */}
+      <div className="flex justify-center pb-4">
+        <HeroSearch />
+      </div>
+
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6" id="trending">
+        {/* Left Column - Main Feed */}
+        <div className="lg:col-span-2 space-y-6">
+          <RecentDiscussions />
+        </div>
+
+        {/* Right Column - Sidebar */}
+        <div className="space-y-6">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center">
+              <MessageSquare className="h-5 w-5 text-indigo-400 mx-auto mb-1" />
+              <div className="text-lg font-bold text-white">Live</div>
+              <div className="text-[10px] text-white/40">Discussions</div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center">
+              <Brain className="h-5 w-5 text-purple-400 mx-auto mb-1" />
+              <div className="text-lg font-bold text-white">AI</div>
+              <div className="text-[10px] text-white/40">Summaries</div>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/[0.04] p-4 text-center">
+              <TrendingUp className="h-5 w-5 text-green-400 mx-auto mb-1" />
+              <div className="text-lg font-bold text-white">Real</div>
+              <div className="text-[10px] text-white/40">Time Data</div>
+            </div>
+          </div>
+
+          <TrendingStocks />
+          <MarketOverview />
+          <TopTraders />
+        </div>
+      </div>
     </div>
   );
 }

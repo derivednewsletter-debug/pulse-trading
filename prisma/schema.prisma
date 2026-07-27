@@ -1,0 +1,346 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PostType {
+  discussion
+  trade_idea
+  analysis
+  question
+  chart
+}
+
+enum Sentiment {
+  bullish
+  bearish
+  neutral
+}
+
+enum NotificationType {
+  like
+  comment
+  reply
+  follow
+  mention
+  stock_activity
+}
+
+enum EntityType {
+  post
+  comment
+  user
+  stock
+}
+
+enum TrendingCategory {
+  most_discussed
+  fastest_growing
+  most_active
+  most_commented
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  emailVerified   DateTime?
+  passwordHash    String?
+  name            String?
+  image           String?
+
+  // Profile
+  username        String?   @unique
+  displayName     String?
+  bio             String?
+  website         String?
+  reputationScore Int       @default(0)
+  isVerified      Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  accounts        Account[]
+  sessions        Session[]
+  posts           Post[]
+  comments        Comment[]
+  likes           Like[]
+  bookmarks       Bookmark[]
+  followers       Follower[]    @relation("following")
+  following       Follower[]    @relation("follower")
+  stockFollowers  StockFollower[]
+  notifications   Notification[] @relation("notification_user")
+  actedNotifs     Notification[] @relation("notification_actor")
+
+  @@map("users")
+}
+
+model Stock {
+  id               String   @id @default(cuid())
+  symbol           String   @unique
+  name             String
+  description      String?
+  sector           String?
+  industry         String?
+  marketCap        BigInt?
+  price            Decimal?  @db.Decimal(15, 2)
+  change24h        Decimal?  @db.Decimal(15, 2)
+  changePercent24h Decimal?  @db.Decimal(8, 3)
+  volume           BigInt?
+  logoUrl          String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  posts           Post[]
+  stockFollowers  StockFollower[]
+  aiSummaries     AISummary[]
+  news            News[]
+  trending        Trending[]
+
+  @@map("stocks")
+}
+
+model Post {
+  id            String   @id @default(cuid())
+  userId        String
+  stockId       String?
+  title         String?
+  content       String
+  type          PostType @default(discussion)
+  imageUrl      String?
+  isMarkdown    Boolean  @default(true)
+  likeCount     Int      @default(0)
+  commentCount  Int      @default(0)
+  bookmarkCount Int      @default(0)
+  viewCount     Int      @default(0)
+  isPinned      Boolean  @default(false)
+  isLocked      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stock     Stock?    @relation(fields: [stockId], references: [id], onDelete: SetNull)
+  comments  Comment[]
+  likes     Like[]
+  bookmarks Bookmark[]
+
+  @@index([userId])
+  @@index([stockId])
+  @@index([createdAt])
+  @@index([type])
+  @@index([likeCount])
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  parentId  String?
+  content   String
+  likeCount Int      @default(0)
+  isEdited  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  likes     Like[]
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  userId    String
+  postId    String?
+  commentId String?
+  createdAt DateTime @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+  @@index([userId])
+  @@index([postId])
+  @@map("likes")
+}
+
+model Bookmark {
+  id             String   @id @default(cuid())
+  userId         String
+  postId         String
+  collectionName String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@map("bookmarks")
+}
+
+model Follower {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  follower  User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("followers")
+}
+
+model StockFollower {
+  id        String   @id @default(cuid())
+  userId    String
+  stockId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stock Stock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stockId])
+  @@index([userId])
+  @@index([stockId])
+  @@map("stock_followers")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  actorId    String?
+  type       NotificationType
+  entityType EntityType
+  entityId   String?
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+
+  user  User  @relation("notification_user", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("notification_actor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+model Trending {
+  id              String            @id @default(cuid())
+  stockId         String
+  rank            Int
+  score           Int               @default(0)
+  postCount24h    Int               @default(0)
+  commentCount24h Int               @default(0)
+  uniqueUsers24h  Int               @default(0)
+  category        TrendingCategory
+  calculatedAt    DateTime          @default(now())
+
+  stock Stock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@index([rank])
+  @@index([category])
+  @@map("trending")
+}
+
+model AISummary {
+  id           String    @id @default(cuid())
+  stockId      String
+  title        String
+  summary      String
+  sentiment    Sentiment
+  bullishScore Int       @default(50)
+  bearishScore Int       @default(50)
+  keyPoints    Json      @default("[]")
+  createdAt    DateTime  @default(now())
+
+  stock Stock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@index([stockId, createdAt])
+  @@map("ai_summaries")
+}model News {
+  id          String    @id @default(cuid())
+  stockId     String
+  title       String
+  url         String
+  source      String
+  summary     String?
+  sentiment   String?
+  publishedAt DateTime
+  createdAt   DateTime @default(now())
+
+  stock Stock @relation(fields: [stockId], references: [id], onDelete: Cascade)
+
+  @@unique([url, stockId])
+  @@index([stockId, publishedAt])
+  @@map("news")
+}
+
+/// Persistent rate-limit counters using fixed windows.
+/// One row per (identifier:route, windowStart) pair.
+model RateLimit {
+  id          String   @id @default(cuid())
+  key         String   // "<identifier>:<route>" — e.g. "127.0.0.1:/api/posts"
+  windowStart DateTime // Start of the current time window (rounded down to window boundary)
+  count       Int      @default(0)
+  maxRequests Int      @default(60) // Denormalised so rows are self-describing
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([key, windowStart])
+  @@index([key])
+  @@index([windowStart])
+  @@map("rate_limits")
+}

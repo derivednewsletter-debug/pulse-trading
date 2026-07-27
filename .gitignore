@@ -36,6 +36,15 @@ yarn-error.log*
 # vercel
 .vercel
 
+# local tooling / agent directories
+.agents/
+.claude/
+.freebuff/
+.windsurf/
+skills-lock.json
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+/src/generated/prisma

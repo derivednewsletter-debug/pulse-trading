@@ -1,0 +1,131 @@
+# ────────────────────────────────────────────────────────────────────────────
+# Pulse CI — TypeScript checks, lint, build smoke test
+#
+# Runs on every push to main and every pull request.
+# The build step (`next build`) subsumes `tsc --noEmit`, so the typecheck
+# job is an independent stricter check with `--noEmit --pretty` flags.
+#
+#   Job layout (parallel after shared setup):
+#     1. typecheck — `tsc --noEmit` (strictest possible check)
+#     2. lint      — `eslint .`
+#     3. build     — `next build` + file-existence smoke test
+#
+# NOTE: Fork PRs cannot access repository secrets (GitHub security policy).
+#       The `prisma generate` step below includes a fallback DATABASE_URL so
+#       external contributions still pass CI.  The real `next build` needs a
+#       real database URL — fork-PR builds will skip the database-dependent
+#       build step unless a contributor configures their own secrets.
+# ────────────────────────────────────────────────────────────────────────────
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  # prisma generate only reads the schema — it does not connect.  We supply
+  # a dummy URL so the step works even on fork PRs where secrets are absent.
+  DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://dummy:dummy@localhost:5432/pulse' }}
+
+jobs:
+  # ── Shared setup ────────────────────────────────────────────────────────
+  setup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Cache node_modules
+        uses: actions/cache/save@v4
+        with:
+          path: node_modules
+          key: deps-${{ hashFiles('package-lock.json') }}-${{ runner.os }}
+
+  # ── 1. TypeScript check ────────────────────────────────────────────────
+  typecheck:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: deps-${{ hashFiles('package-lock.json') }}-${{ runner.os }}
+          fail-on-cache-miss: true
+
+      - name: TypeScript check
+        run: npx tsc --noEmit --pretty
+
+  # ── 2. Lint ────────────────────────────────────────────────────────────
+  lint:
+    needs: setup
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: deps-${{ hashFiles('package-lock.json') }}-${{ runner.os }}
+          fail-on-cache-miss: true
+
+      - name: Lint
+        run: npm run lint
+
+  # ── 3. Build + smoke test ──────────────────────────────────────────────
+  build:
+    needs: setup
+    # Skip on fork PRs that cannot access the real DATABASE_URL secret
+    if: ${{ !github.event.pull_request.head.repo.fork }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore node_modules
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: deps-${{ hashFiles('package-lock.json') }}-${{ runner.os }}
+          fail-on-cache-miss: true
+
+      - name: Build
+        run: npm run build
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET || 'dummy-ci-secret-for-build-at-least-32-chars-long!!' }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL || 'http://localhost:3000' }}
+
+      - name: Smoke test — verify build output exists
+        run: |
+          if [ -d ".next" ] && [ -f ".next/build-manifest.json" ]; then
+            echo "✅ Build output present (.next/build-manifest.json)"
+            # Verify the build manifest is valid JSON with a buildId
+            if grep -q '"buildId"' .next/build-manifest.json 2>/dev/null; then
+              echo "✅ Build manifest is valid (contains buildId)"
+            fi
+            echo "✅ All checks passed"
+          else
+            echo "❌ Build output missing — next build may have failed silently"
+            exit 1
+          fi
