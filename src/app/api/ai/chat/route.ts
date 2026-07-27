@@ -58,7 +58,7 @@ async function handler(request: NextRequest) {
 
   if (posts.length > 0) {
     context += 'Recent Community Posts:\n';
-    posts.slice(0, 5).forEach((post) => {
+    posts.slice(0, 5).forEach((post: typeof posts[number]) => {
       context += `- ${post.user?.username}: ${post.content.slice(0, 200)}\n`;
     });
   }
