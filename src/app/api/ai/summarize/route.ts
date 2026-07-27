@@ -52,8 +52,8 @@ async function handler(request: NextRequest) {
   const summary = await generateStockSummary({
     stockSymbol: stock.symbol,
     stockName: stock.name,
-    posts: posts.map((p) => p.content),
-    news: news.map((n) => n.summary || n.title),
+    posts: posts.map((p: typeof posts[number]) => p.content),
+    news: news.map((n: typeof news[number]) => n.summary || n.title),
     previousSummary: previousSummary?.summary ?? undefined,
   });
 
